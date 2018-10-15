@@ -371,3 +371,20 @@ function upsearch () {
     popd > /dev/null
   fi
 }
+
+# Print warning block. Accepts multiple strings as arguments. Each prints on new line
+print_warning() {
+  local warning_format='%{$fg[yellow]%}%{$bg[black]%}\t'
+  local warning_format_end='%E%{$reset_color%}'
+  for var in "$@"; do
+    print -P "$warning_format$var$warning_format_end"
+  done
+}
+
+# Get length of element, only counting visible characters
+get_visible_length() {
+  local varLength=$(print -P "$1")
+  # Strip out the color/escape codes to only leave visible characters
+  varLength=$(sed -E "s/.\[[0-9]*[a-zA-Z]//g" <<< $varLength)
+  echo -n ${#varLength}
+}

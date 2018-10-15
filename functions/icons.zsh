@@ -42,6 +42,7 @@ case $POWERLEVEL9K_MODE in
       NODE_ICON                      $'\u2B22'              # ⬢
       MULTILINE_FIRST_PROMPT_PREFIX  $'\u256D'$'\U2500'     # ╭─
       MULTILINE_NEWLINE_PROMPT_PREFIX  $'\u251C'$'\U2500'   # ├─
+      MULTILINE_NO_BRANCH_PROMPT_PREFIX $'\u2502'           # │
       MULTILINE_LAST_PROMPT_PREFIX   $'\u2570'$'\U2500 '    # ╰─
       APPLE_ICON                     $'\uE26E'              # 
       WINDOWS_ICON                   $'\uE26F'              # 
@@ -142,6 +143,7 @@ case $POWERLEVEL9K_MODE in
       NODE_ICON                      $'\u2B22'              # ⬢
       MULTILINE_FIRST_PROMPT_PREFIX  $'\u256D'$'\U2500'     # ╭─
       MULTILINE_NEWLINE_PROMPT_PREFIX  $'\u251C'$'\U2500'   # ├─
+      MULTILINE_NO_BRANCH_PROMPT_PREFIX $'\u2502'           # │
       MULTILINE_LAST_PROMPT_PREFIX   $'\u2570'$'\U2500 '    # ╰─
       APPLE_ICON                     $'\uF179'              # 
       WINDOWS_ICON                   $'\uF17A'              # 
@@ -340,6 +342,7 @@ case $POWERLEVEL9K_MODE in
       NODE_ICON                      $'\uE617 '             # 
       MULTILINE_FIRST_PROMPT_PREFIX  $'\u256D'$'\U2500'     # ╭─
       MULTILINE_NEWLINE_PROMPT_PREFIX  $'\u251C'$'\U2500'   # ├─
+      MULTILINE_NO_BRANCH_PROMPT_PREFIX $'\u2502'           # │
       MULTILINE_LAST_PROMPT_PREFIX   $'\u2570'$'\U2500 '    # ╰─
       APPLE_ICON                     $'\uF179'              # 
       WINDOWS_ICON                   $'\uF17A'              # 
@@ -436,6 +439,7 @@ case $POWERLEVEL9K_MODE in
       NODE_ICON                      $'\u2B22'              # ⬢
       MULTILINE_FIRST_PROMPT_PREFIX  $'\u256D'$'\U2500'     # ╭─
       MULTILINE_NEWLINE_PROMPT_PREFIX  $'\u251C'$'\U2500'   # ├─
+      MULTILINE_NO_BRANCH_PROMPT_PREFIX $'\u2502'           # │
       MULTILINE_LAST_PROMPT_PREFIX   $'\u2570'$'\U2500 '    # ╰─
       APPLE_ICON                     'OSX'
       WINDOWS_ICON                   'WIN'

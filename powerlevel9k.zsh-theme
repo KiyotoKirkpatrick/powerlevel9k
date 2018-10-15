@@ -115,7 +115,7 @@ left_prompt_segment() {
   local current_index=$2
   # Check if the segment should be joined with the previous one
   local joined
-  segmentShouldBeJoined $current_index $last_left_element_index "$POWERLEVEL9K_LEFT_PROMPT_ELEMENTS" && joined=true || joined=false
+  segmentShouldBeJoined $current_index $last_left_element_index "$NEWLINE_STRIPPED_POWERLEVEL9K_LEFT_PROMPT_ELEMENTS" && joined=true || joined=false
 
   # Colors
   local backgroundColor="${3}"
@@ -217,7 +217,7 @@ right_prompt_segment() {
 
   # Check if the segment should be joined with the previous one
   local joined
-  segmentShouldBeJoined $current_index $last_right_element_index "$POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS" && joined=true || joined=false
+  segmentShouldBeJoined $current_index $last_right_element_index "$NEWLINE_STRIPPED_POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS" && joined=true || joined=false
 
   # Colors
   local backgroundColor="${3}"
@@ -347,24 +347,6 @@ prompt_background_jobs() {
     fi
     "$1_prompt_segment" "$0" "$2" "$DEFAULT_COLOR" "cyan" "$background_jobs_number_print" 'BACKGROUND_JOBS_ICON'
   fi
-}
-
-################################################################
-# A newline in your prompt, so you can segments on multiple lines.
-prompt_newline() {
-  local lws newline
-  [[ "$1" == "right" ]] && return
-  newline=$'\n'
-  lws=$POWERLEVEL9K_WHITESPACE_BETWEEN_LEFT_SEGMENTS
-  if [[ "$POWERLEVEL9K_PROMPT_ON_NEWLINE" == true ]]; then
-    newline="${newline}$(print_icon 'MULTILINE_NEWLINE_PROMPT_PREFIX')"
-  fi
-  POWERLEVEL9K_WHITESPACE_BETWEEN_LEFT_SEGMENTS=
-  "$1_prompt_segment" \
-    "$0" \
-    "$2" \
-    "NONE" "NONE" "${newline}"
-  POWERLEVEL9K_WHITESPACE_BETWEEN_LEFT_SEGMENTS=$lws
 }
 
 ################################################################
@@ -1769,7 +1751,9 @@ prompt_java_version() {
 build_left_prompt() {
   local index=1
   local element
-  for element in "${POWERLEVEL9K_LEFT_PROMPT_ELEMENTS[@]}"; do
+  local elementArray=("$@")
+
+  for element in "${elementArray[@]}"; do
     # Remove joined information in direct calls
     element=${element%_joined}
 
@@ -1791,7 +1775,9 @@ build_left_prompt() {
 build_right_prompt() {
   local index=1
   local element
-  for element in "${POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS[@]}"; do
+  local elementArray=("$@")
+
+  for element in "${elementArray[@]}"; do
     # Remove joined information in direct calls
     element=${element%_joined}
 
@@ -1814,6 +1800,33 @@ powerlevel9k_preexec() {
   _P9K_TIMER_START=$EPOCHREALTIME
 }
 
+# Set left prompt prefixes and suffixes
+set_default POWERLEVEL9K_MULTILINE_FIRST_PROMPT_PREFIX "$(print_icon 'MULTILINE_FIRST_PROMPT_PREFIX')"
+set_default POWERLEVEL9K_MULTILINE_FIRST_PROMPT_SUFFIX ""
+set_default POWERLEVEL9K_MULTILINE_MID_PROMPT_PREFIX "$(print_icon 'MULTILINE_NEWLINE_PROMPT_PREFIX')"
+set_default POWERLEVEL9K_MULTILINE_MID_PROMPT_SUFFIX ""
+set_default POWERLEVEL9K_MULTILINE_MID_NEWLINE_PROMPT_PREFIX "$(print_icon 'MULTILINE_NO_BRANCH_PROMPT_PREFIX')"
+set_default POWERLEVEL9K_MULTILINE_MID_NEWLINE_PROMPT_SUFFIX ""
+set_default POWERLEVEL9K_MULTILINE_LAST_PROMPT_PREFIX "$(print_icon 'MULTILINE_LAST_PROMPT_PREFIX')"
+set_default POWERLEVEL9K_MULTILINE_LAST_PROMPT_SUFFIX ""
+
+# Set right prompt prefixes and suffixes
+set_default POWERLEVEL9K_MULTILINE_FIRST_RPROMPT_PREFIX ""
+set_default POWERLEVEL9K_MULTILINE_FIRST_RPROMPT_SUFFIX ""
+set_default POWERLEVEL9K_MULTILINE_MID_RPROMPT_PREFIX ""
+set_default POWERLEVEL9K_MULTILINE_MID_RPROMPT_SUFFIX ""
+set_default POWERLEVEL9K_MULTILINE_MID_NEWLINE_RPROMPT_PREFIX ""
+set_default POWERLEVEL9K_MULTILINE_MID_NEWLINE_RPROMPT_SUFFIX ""
+set_default POWERLEVEL9K_MULTILINE_LAST_RPROMPT_PREFIX ""
+set_default POWERLEVEL9K_MULTILINE_LAST_RPROMPT_SUFFIX ""
+
+# Set prompt warnings on by default
+set_default POWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS false
+
+# Set these to fix joined elements when there are newlines
+NEWLINE_STRIPPED_POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=()
+NEWLINE_STRIPPED_POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=()
+
 set_default POWERLEVEL9K_PROMPT_ADD_NEWLINE false
 powerlevel9k_prepare_prompts() {
   # Return values. These need to be global, because
@@ -1825,46 +1838,284 @@ powerlevel9k_prepare_prompts() {
   RETVAL=$?
   RETVALS=( "$pipestatus[@]" )
 
-  local RPROMPT_SUFFIX RPROMPT_PREFIX
+  local NEWLINE='
+'
   _P9K_COMMAND_DURATION=$((EPOCHREALTIME - _P9K_TIMER_START))
-
   # Reset start time
   _P9K_TIMER_START=0x7FFFFFFF
 
-  if [[ "$POWERLEVEL9K_PROMPT_ON_NEWLINE" == true ]]; then
-    PROMPT='$(print_icon 'MULTILINE_FIRST_PROMPT_PREFIX')%f%b%k$(build_left_prompt)
-$(print_icon 'MULTILINE_LAST_PROMPT_PREFIX')'
-    if [[ "$POWERLEVEL9K_RPROMPT_ON_NEWLINE" != true ]]; then
-      # The right prompt should be on the same line as the first line of the left
-      # prompt. To do so, there is just a quite ugly workaround: Before zsh draws
-      # the RPROMPT, we advise it, to go one line up. At the end of RPROMPT, we
-      # advise it to go one line down. See:
-      # http://superuser.com/questions/357107/zsh-right-justify-in-ps1
-      local LC_ALL="" LC_CTYPE="en_US.UTF-8" # Set the right locale to protect special characters
-      RPROMPT_PREFIX='%{'$'\e[1A''%}' # one line up
-      RPROMPT_SUFFIX='%{'$'\e[1B''%}' # one line down
-    else
-      RPROMPT_PREFIX=''
-      RPROMPT_SUFFIX=''
-    fi
-  else
-    PROMPT='%f%b%k$(build_left_prompt)'
-    RPROMPT_PREFIX=''
-    RPROMPT_SUFFIX=''
-  fi
+  # Reset Prompts
+  PROMPT=""
+  RPROMPT=""
 
-  if [[ "$POWERLEVEL9K_DISABLE_RPROMPT" != true ]]; then
-    RPROMPT="${RPROMPT_PREFIX}"'%f%b%k$(build_right_prompt)%{$reset_color%}'"${RPROMPT_SUFFIX}"
-  fi
-
-local NEWLINE='
-'
-
+  # Add newlines if defined
   if [[ $POWERLEVEL9K_PROMPT_ADD_NEWLINE == true ]]; then
     NEWLINES=""
-    repeat ${POWERLEVEL9K_PROMPT_ADD_NEWLINE_COUNT:-1} { NEWLINES+=$NEWLINE }
-    PROMPT="$NEWLINES$PROMPT"
+    repeat ${POWERLEVEL9K_PROMPT_ADD_NEWLINE_COUNT:-1} NEWLINES+=$NEWLINE
+    PROMPT="$NEWLINES"
   fi
+
+  # If right prompt on new line, add "newline" to element array
+  if [[ "$POWERLEVEL9K_RPROMPT_ON_NEWLINE" == true ]]; then
+    if [[ "${POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS[1]}" != "newline" ]]; then
+      POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=("newline" "${POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS[@]}")
+    fi
+  fi
+
+  # Add a newline to the left element array to have the prompt on a new line
+  if [[ "$POWERLEVEL9K_PROMPT_ON_NEWLINE" == true ]]; then
+    POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=("${POWERLEVEL9K_LEFT_PROMPT_ELEMENTS[@]}" "newline")
+
+    # Set prompt modifiers default to unknown so they will be shown along with the warning
+    set_default POWERLEVEL9K_MULTILINE_PROMPT_MODIFIERS "unknown"
+    set_default POWERLEVEL9K_MULTILINE_RPROMPT_MODIFIERS "unknown"
+
+    if [[ "$POWERLEVEL9K_MULTILINE_PROMPT_MODIFIERS" == "unknown" && "$POWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS" != true ]]; then
+      # Show warning if prompt modifier flags not set
+      # Warning printout is suppressed with POWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS=true
+      print -P "$PROMPT" # Print PROMPT in case newlines were added via P9K_PROMPT_ADD_NEWLINE
+      PROMPT="\n"
+      print_warning "%BPOWERLEVEL9K WARNING!"\
+        "POWERLEVEL9K_PROMPT_ON_NEWLINE is set to true, but the prompt modifier variables haven't been set."\
+        "They wll default to being shown."\
+        "Left Prompt Modifiers variable: %{$fg[white]%}POWERLEVEL9K_MULTILINE_PROMPT_MODIFIERS=<true | false>"\
+        "Right Prompt Modifiers variable: %{$fg[white]%}POWERLEVEL9K_MULTILINE_RPROMPT_MODIFIERS=<true | false>\n"\
+        "Available Left Prompt Modifiers:"\
+        "%{$fg[white]%}POWERLEVEL9K_MULTILINE_FIRST_PROMPT_PREFIX"\
+        "(Shows before first left-side row with content. Defaults to ╭─ )\n"\
+        "%{$fg[white]%}POWERLEVEL9K_MULTILINE_FIRST_PROMPT_SUFFIX"\
+        "(Shows after first left-side row with content)\n"\
+        "%{$fg[white]%}POWERLEVEL9K_MULTILINE_MID_PROMPT_PREFIX"\
+        "(Shows before every non-first or last left-side row with content. Defaults to ├─ )\n"\
+        "%{$fg[white]%}POWERLEVEL9K_MULTILINE_MID_PROMPT_SUFFIX"\
+        "(Shows after every non-first or last left-side row with content)\n"\
+        "%{$fg[white]%}POWERLEVEL9K_MULTILINE_MID_NEWLINE_PROMPT_PREFIX"\
+        "(Shows before every non-first or last newline left-side row. Defaults to │ )\n"\
+        "%{$fg[white]%}POWERLEVEL9K_MULTILINE_MID_NEWLINE_PROMPT_SUFFIX"\
+        "(Shows after every non-first or last newline left-side row)\n"\
+        "%{$fg[white]%}POWERLEVEL9K_MULTILINE_LAST_PROMPT_PREFIX"\
+        "(Shows before the last left-side row with content. Defaults to ╰─ )\n"\
+        "%{$fg[white]%}POWERLEVEL9K_MULTILINE_LAST_PROMPT_SUFFIX"\
+        "(Shows after the last left-side row with content)\n"\
+        "The same modifiers are available for the right prompt, but wth RPROMPT rather than PROMPT in the variable name"\
+        "Example: %{$fg[white]%}POWERLEVEL9K_MULTILINE_FIRST_RPROMPT_PREFIX"\
+        "None of the right prompt modifiers have defaults."\
+        "The way prompts are constructed has changed, and you can now use newlines in both the left and right segments."\
+        "To suppress all prompt warnings, set %BPOWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS=true"
+    fi
+  else
+    set_default POWERLEVEL9K_MULTILINE_PROMPT_MODIFIERS false
+    set_default POWERLEVEL9K_MULTILINE_RPROMPT_MODIFIERS false
+  fi
+
+  # These are set mostly for readability
+  local PROMPT_MODIFIERS="$POWERLEVEL9K_MULTILINE_PROMPT_MODIFIERS"
+  local RPROMPT_MODIFIERS="$POWERLEVEL9K_MULTILINE_RPROMPT_MODIFIERS"
+
+  local FIRST_PROMPT_PREFIX="$POWERLEVEL9K_MULTILINE_FIRST_PROMPT_PREFIX"
+  local FIRST_PROMPT_SUFFIX="$POWERLEVEL9K_MULTILINE_FIRST_PROMPT_SUFFIX"
+  local MID_PROMPT_PREFIX="$POWERLEVEL9K_MULTILINE_MID_PROMPT_PREFIX"
+  local MID_PROMPT_SUFFIX="$POWERLEVEL9K_MULTILINE_MID_PROMPT_SUFFIX"
+  local MID_NEWLINE_PROMPT_PREFIX="$POWERLEVEL9K_MULTILINE_MID_NEWLINE_PROMPT_PREFIX"
+  local MID_NEWLINE_PROMPT_SUFFIX="$POWERLEVEL9K_MULTILINE_MID_NEWLINE_PROMPT_SUFFIX"
+  local LAST_PROMPT_PREFIX="$POWERLEVEL9K_MULTILINE_LAST_PROMPT_PREFIX"
+  local LAST_PROMPT_SUFFIX="$POWERLEVEL9K_MULTILINE_LAST_PROMPT_SUFFIX"
+
+  local FIRST_RPROMPT_PREFIX="$POWERLEVEL9K_MULTILINE_FIRST_RPROMPT_PREFIX"
+  local FIRST_RPROMPT_SUFFIX="$POWERLEVEL9K_MULTILINE_FIRST_RPROMPT_SUFFIX"
+  local MID_RPROMPT_PREFIX="$POWERLEVEL9K_MULTILINE_MID_RPROMPT_PREFIX"
+  local MID_RPROMPT_SUFFIX="$POWERLEVEL9K_MULTILINE_MID_RPROMPT_SUFFIX"
+  local MID_NEWLINE_RPROMPT_PREFIX="$POWERLEVEL9K_MULTILINE_MID_NEWLINE_RPROMPT_PREFIX"
+  local MID_NEWLINE_RPROMPT_SUFFIX="$POWERLEVEL9K_MULTILINE_MID_NEWLINE_RPROMPT_SUFFIX"
+  local LAST_RPROMPT_PREFIX="$POWERLEVEL9K_MULTILINE_LAST_RPROMPT_PREFIX"
+  local LAST_RPROMPT_SUFFIX="$POWERLEVEL9K_MULTILINE_LAST_RPROMPT_SUFFIX"
+
+
+
+  # ============================== Row Creation ==============================
+  # Create a new line for each newline segment in both the left and right
+  # prompt elements to allow multiline right segments
+  # We'll need to strip out the newline segments so they don't get called,
+  # and split the array into rows to loop through
+  # ==========================================================================
+  local joined_left_array=${(j: :)POWERLEVEL9K_LEFT_PROMPT_ELEMENTS}
+  # Replace newlines with "," to get array splitting to work
+  joined_left_array=$(sed -E 's/[ ]?newline[ ]?/,/g' <<< $joined_left_array)
+  local left_segment_array=("${(@s/,/)joined_left_array}")
+  local left_segment_array_length=${#left_segment_array[@]}
+
+  local row_count=$left_segment_array_length
+
+  # Do right prompt calculations if enabled
+  if [[ "$POWERLEVEL9K_DISABLE_RPROMPT" != true ]]; then
+    local joined_right_array=${(j: :)POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS}
+    # Replace newlines with "," to get array splitting to work
+    joined_right_array=$(sed -E 's/[ ]?newline[ ]?/,/g' <<< $joined_right_array)
+    local right_segment_array=("${(@s/,/)joined_right_array}")
+    local right_segment_array_length=${#right_segment_array[@]}
+
+    # Get row count by getting the max number of elements between left and right prompts if right prompt enabled
+    row_count=$(( $left_segment_array_length > $right_segment_array_length ? $left_segment_array_length : $right_segment_array_length ))
+
+    if [[ $right_segment_array_length -gt $left_segment_array_length && "$POWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS" != true ]]; then
+      # Show warning if right prompt has more rows than left
+      # Warning printout is suppressed with POWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS=true
+      print -P "$PROMPT" # Print PROMPT in case newlines were added via P9K_PROMPT_ADD_NEWLINE
+      PROMPT="\n"
+      print_warning "%BPOWERLEVEL9K WARNING!"\
+        "There are more rows in the right prompt than the left."\
+        "Number of Left rows: %{$fg[white]%}$left_segment_array_length"\
+        "Number of Right rows: %{$fg[white]%}$right_segment_array_length"\
+        "You may want to remove some 'newline' elements from the right prompt or add some to the left"\
+        "To suppress all prompt warnings, set %BPOWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS=true"
+    fi
+  fi
+
+  # ============================== Main Row Loop  ==============================
+  local past_first_prompt_with_content=false
+  local past_first_rprompt_with_content=false
+  # Loop through the number of rows
+  for index in $(seq $row_count); do
+    local left_sub_segment_string="${left_segment_array[$index]}"
+
+    if [[ ${#left_sub_segment_string} -gt 0 ]]; then
+      # Convert left_sub_segment_array from string back to array
+      local left_sub_segment_array=("${(@s/ /)left_sub_segment_string}")
+
+      # Update the prompt element array that's passed to joining function
+      NEWLINE_STRIPPED_POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=("$left_sub_segment_array")
+
+      # Build the left side of the prompt row
+      local left_prompt=$(build_left_prompt "${left_sub_segment_array[@]}")
+
+      # Do a += rather than = in case POWERLEVEL9K_PROMPT_ADD_NEWLINE is adding newlines to PROMPT
+      if [[ "$PROMPT_MODIFIERS" != false ]]; then
+        # Add Modifiers if they're set
+        if [[ "$past_first_prompt_with_content" == false ]]; then
+          past_first_prompt_with_content=true
+          # First prompt, so set first prompt prefix and suffix
+          PROMPT+="$FIRST_PROMPT_PREFIX"'%f%b%k'$left_prompt"$FIRST_PROMPT_SUFFIX"'%f%b%k'
+        elif [[ $index -lt $left_segment_array_length ]]; then
+          # Mid prompt, so set mid prompt prefix and suffix
+          PROMPT+="$MID_PROMPT_PREFIX"'%f%b%k'$left_prompt"$MID_PROMPT_SUFFIX"'%f%b%k'
+        else
+          # Last prompt, so set last prompt prefix and suffix
+          PROMPT+="$LAST_PROMPT_PREFIX"'%f%b%k'$left_prompt"$LAST_PROMPT_SUFFIX"'%f%b%k'
+        fi
+      else
+        # No prompt modifiers should be used
+        PROMPT+='%f%b%k'$left_prompt'%f%b%k'
+      fi
+    else
+      # If the sub_segment_string is zero, then it's a newline
+      # Do a += rather than = in case POWERLEVEL9K_PROMPT_ADD_NEWLINE is adding newlines to PROMPT
+      if [[ "$PROMPT_MODIFIERS" != false ]]; then
+        # Add Modifiers if they're set
+        if [[ "$past_first_prompt_with_content" == true && $index -lt $left_segment_array_length ]]; then
+          # If we're past the first prompt containing content and there's a newline, put in the mid prefix and suffix
+          PROMPT+="$MID_NEWLINE_PROMPT_PREFIX"'%f%b%k'"$MID_NEWLINE_PROMPT_SUFFIX"'%f%b%k'
+        elif [[ $index -eq $left_segment_array_length ]]; then
+          # If we're past the first prompt containing content and there's a newline, put in the last prefix and suffix
+          PROMPT+="$LAST_PROMPT_PREFIX"'%f%b%k'"$LAST_PROMPT_SUFFIX"'%f%b%k'
+        else
+          # There are newlines before any content, so don't print modifiers
+          PROMPT+=""
+        fi
+      else
+        # No prompt modifiers should be used
+        PROMPT+=""
+      fi
+    fi
+
+    # ===================== Build Right Prompt  =====================
+    if [[ "$POWERLEVEL9K_DISABLE_RPROMPT" != true ]]; then
+      if [[ $right_segment_array_length -ge $index ]]; then
+        local right_sub_segment_string="${right_segment_array[$index]}"
+        if [[ ${#right_sub_segment_string} -gt 0 ]]; then
+          # Convert right_sub_segment_array from string back to array
+          local right_sub_segment_array=("${(@s/ /)right_sub_segment_string}")
+
+          # Update the prompt element array that's passed to joining function
+          NEWLINE_STRIPPED_POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=("$right_sub_segment_array")
+
+          # Build the right side of the prompt row
+          local right_prompt=$(build_right_prompt "${right_sub_segment_array[@]}")
+
+          # Do a += rather than = in case POWERLEVEL9K_RPROMPT_ON_NEWLINE is adding newlines to RPROMPT
+          if [[ "$RPROMPT_MODIFIERS" != false ]]; then
+            # Add Modifiers if they're set
+            if [[ "$past_first_rprompt_with_content" == false ]]; then
+              past_last_prompt=true
+              # First prompt, so set first prompt prefix and suffix
+              RPROMPT+="$FIRST_RPROMPT_PREFIX"'%f%b%k'$right_prompt"$FIRST_RPROMPT_SUFFIX"'%{$reset_color%}'
+            elif [[ $index -lt $right_segment_array_length ]]; then
+              # Mid prompt, so set mid prompt prefix and suffix
+              RPROMPT+="$MID_RPROMPT_PREFIX"'%f%b%k'$right_prompt"$MID_RPROMPT_SUFFIX"'%{$reset_color%}'
+            else
+              # Last prompt, so set last prompt prefix and suffix
+              RPROMPT+="$LAST_RPROMPT_PREFIX"'%f%b%k'$right_prompt"$LAST_RPROMPT_SUFFIX"'%{$reset_color%}'
+            fi
+          else
+            # No prompt modifiers should be used
+            RPROMPT+='%f%b%k'$right_prompt'%{$reset_color%}'
+          fi
+        else
+          # If the sub_segment_string is zero, then it's a newline
+          # Do a += rather than = in case POWERLEVEL9K_RPROMPT_ON_NEWLINE is adding newlines to RPROMPT
+          if [[ "$RPROMPT_MODIFIERS" != false ]]; then
+            # Add Modifiers if they're set
+            if [[ "$past_first_rprompt_with_content" == true && $index -lt $right_segment_array_length ]]; then
+              # If we're past the first prompt containing content and there's a newline, put in the mid prefix and suffix
+              RPROMPT+="$MID_NEWLINE_RPROMPT_PREFIX"'%f%b%k'"$MID_NEWLINE_RPROMPT_SUFFIX"'%f%b%k'
+            elif [[ $index -eq $right_segment_array_length ]]; then
+              # If we're past the first prompt containing content and there's a newline, put in the last prefix and suffix
+              RPROMPT+="$LAST_RPROMPT_PREFIX"'%f%b%k'"$LAST_RPROMPT_SUFFIX"'%f%b%k'
+            else
+              # There are newlines before any content, so don't print modifiers
+              RPROMPT+=""
+            fi
+          else
+            # No prompt modifiers should be used
+            RPROMPT+=""
+          fi
+        fi
+      else
+        # If there are no more elements, don't print anything
+        RPROMPT=
+      fi
+    fi
+
+    # Add a newline if there are more rows
+    if [[ $index -lt ${row_count} ]]; then
+      # Print the prompts directly, with padding in the middle to get the right prompt to the right side
+      local left_length=$(get_visible_length $PROMPT)
+      local right_length=$(get_visible_length $RPROMPT)
+      local padding=$(($COLUMNS - $right_length - $left_length))
+
+      if [[ $padding -lt 0 && "$POWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS" != true ]]; then
+        # Show warning if right prompt has more rows than left
+        # Warning printout is suppressed with POWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS=true
+        print -P "%f%b%k%{$reset_color%}%E" # Reset any styling
+        print_warning "%BPOWERLEVEL9K WARNING!"\
+          "The row below is too long to fit on the screen."\
+          "You may want to remove some elements from the left or right prompt for this row."\
+          "Left side elements: %{$fg[white]%}${left_sub_segment_array}"\
+          "Right side elements: %{$fg[white]%}${right_sub_segment_array}"\
+          "Left side length: %{$fg[white]%}$left_length"\
+          "Right side length: %{$fg[white]%}$right_length"\
+          "Screen width: %{$fg[white]%}$COLUMNS"\
+          "To suppress all prompt warnings, set %BPOWERLEVEL9K_SUPPRESS_PROMPT_WARNINGS=true"
+        echo
+      fi
+
+      # Print out the assembled prompt row
+      print -P $PROMPT${(l:padding:: :)}$RPROMPT
+
+      # Reset PROMPTs for the next loop since we're printing directly
+      PROMPT=
+      RPROMPT=
+    fi
+  done
 
   # Allow iTerm integration to work
   [[ $ITERM_SHELL_INTEGRATION_INSTALLED == "Yes" ]] && PROMPT="%{$(iterm2_prompt_mark)%}$PROMPT"
